@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Path Finder – Algorithm Visualizer</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Path Finder</h1>
+      <p class="subtitle">Visualize path-finding algorithms in action</p>
+    </header>
+
+    <main>
+      <!-- Controls -->
+      <section class="controls">
+        <div class="control-group">
+          <label for="algorithm-select">Algorithm</label>
+          <select id="algorithm-select">
+            <option value="bfs">Breadth-First Search (BFS)</option>
+            <option value="dfs">Depth-First Search (DFS)</option>
+            <option value="dijkstra">Dijkstra's Algorithm</option>
+            <option value="astar">A* Search</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="speed-select">Speed</label>
+          <select id="speed-select">
+            <option value="fast">Fast</option>
+            <option value="medium" selected>Medium</option>
+            <option value="slow">Slow</option>
+          </select>
+        </div>
+
+        <div class="button-group">
+          <button id="btn-visualize" class="btn btn-primary">Visualize</button>
+          <button id="btn-clear-path" class="btn btn-secondary">Clear Path</button>
+          <button id="btn-clear-board" class="btn btn-secondary">Clear Board</button>
+        </div>
+
+        <div class="legend">
+          <span class="legend-item"><span class="legend-box start"></span>Start</span>
+          <span class="legend-item"><span class="legend-box end"></span>End</span>
+          <span class="legend-item"><span class="legend-box wall"></span>Wall</span>
+          <span class="legend-item"><span class="legend-box visited"></span>Visited</span>
+          <span class="legend-item"><span class="legend-box path"></span>Shortest Path</span>
+        </div>
+      </section>
+
+      <!-- Grid -->
+      <section class="grid-container">
+        <div id="grid" role="grid" aria-label="Path finding grid"></div>
+      </section>
+
+      <!-- Status bar -->
+      <section class="status-bar">
+        <span id="status-message">Click on the grid to place walls, then click Visualize.</span>
+      </section>
+    </main>
+
+    <footer>
+      <p>Click cells to toggle walls &bull; Drag start/end nodes to reposition them</p>
+    </footer>
+
+    <script src="js/main.js"></script>
+  </body>
+</html>
