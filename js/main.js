@@ -2,8 +2,6 @@
 
 /* ============================================================
    js/main.js  –  Path Finder orchestration
-   Handles grid environment, canvas (free-space) environment,
-   animation, UI updates, and algorithm dispatch.
    ============================================================ */
 
 // ---------------------------------------------------------------------------
@@ -12,12 +10,11 @@
 const ROWS = 20;
 const COLS = 30;
 
-const CANVAS_WIDTH  = 869; // matches 30 * 28 + 29 px gaps
-const CANVAS_HEIGHT = 579; // matches 20 * 28 + 19 px gaps
+const CANVAS_WIDTH  = 869; // 30 * 28 + 29 px gaps
+const CANVAS_HEIGHT = 579; // 20 * 28 + 19 px gaps
 
-const GRID_SPEED_MAP = { slow: 80, medium: 30, fast: 5 };
-// Sampling steps animate faster – algorithms can produce thousands of edges
-const SAMPLING_SPEED_MAP = { slow: 10, medium: 3, fast: 0 };
+const GRID_SPEED_MAP     = { slow: 80,  medium: 30, fast: 5 };
+const SAMPLING_SPEED_MAP = { slow: 10,  medium: 3,  fast: 0 };
 
 // ---------------------------------------------------------------------------
 // State
@@ -28,16 +25,18 @@ const state = {
   startNode:   null,
   endNode:     null,
   isMouseDown: false,
-  isDragging:  null,  // 'start' | 'end' | null
+  isDragging:  null,   // 'start' | 'end' | null
 
   // Algorithm type
-  algorithmType: 'grid', // 'grid' | 'sampling'
+  algorithmType: 'sampling', // 'grid' | 'sampling'
 
   // Canvas environment
   canvasStart:           null,  // {x, y}
   canvasEnd:             null,  // {x, y}
   canvasObstacles:       [],    // [{cx, cy, r}]
-  canvasEdges:           [],    // edge steps from current/last run
+  canvasTreeEdges:       [],    // subtype 'tree'
+  canvasRoadmapEdges:    [],    // subtype 'roadmap'
+  canvasCollisionEdges:  [],    // subtype 'collision'
   canvasPath:            null,  // [{x,y}] | null
 
   // Canvas mouse interaction
@@ -49,23 +48,23 @@ const state = {
 
   // Shared
   isRunning:  false,
-  animCancel: null, // { cancelled: false }
+  animCancel: null,   // { cancelled: false }
 };
 
 // ---------------------------------------------------------------------------
 // DOM references
 // ---------------------------------------------------------------------------
-const gridEl          = document.getElementById('grid');
-const canvasEl        = document.getElementById('canvas');
-const ctx             = canvasEl.getContext('2d');
+const gridEl           = document.getElementById('grid');
+const canvasEl         = document.getElementById('canvas');
+const ctx              = canvasEl.getContext('2d');
 const algorithmTypeSel = document.getElementById('algorithm-type');
-const algorithmSel    = document.getElementById('algorithm-select');
-const speedSel        = document.getElementById('speed-select');
-const btnVisualize    = document.getElementById('btn-visualize');
-const btnClearPath    = document.getElementById('btn-clear-path');
-const btnClearBoard   = document.getElementById('btn-clear-board');
-const statusMsg       = document.getElementById('status-message');
-const footerHint      = document.getElementById('footer-hint');
+const algorithmSel     = document.getElementById('algorithm-select');
+const speedSel         = document.getElementById('speed-select');
+const btnVisualize     = document.getElementById('btn-visualize');
+const btnClearPath     = document.getElementById('btn-clear-path');
+const btnClearBoard    = document.getElementById('btn-clear-board');
+const statusMsg        = document.getElementById('status-message');
+const footerHint       = document.getElementById('footer-hint');
 
 // ============================================================
 // GRID ENVIRONMENT
@@ -82,7 +81,6 @@ function createCell(row, col) {
 function initGrid() {
   state.grid = [];
   gridEl.innerHTML = '';
-
   for (let row = 0; row < ROWS; row++) {
     const rowArr = [];
     for (let col = 0; col < COLS; col++) {
@@ -92,7 +90,6 @@ function initGrid() {
     }
     state.grid.push(rowArr);
   }
-
   setStart(Math.floor(ROWS / 2), Math.floor(COLS * 0.2));
   setEnd(Math.floor(ROWS / 2), Math.floor(COLS * 0.8));
 }
@@ -153,8 +150,8 @@ function onCellMouseDown(e) {
   if (state.isRunning) return;
   e.preventDefault();
   state.isMouseDown = true;
-  const row = parseInt(e.target.dataset.row);
-  const col = parseInt(e.target.dataset.col);
+  const row  = parseInt(e.target.dataset.row);
+  const col  = parseInt(e.target.dataset.col);
   const cell = state.grid[row][col];
   if      (cell.isStart) state.isDragging = 'start';
   else if (cell.isEnd)   state.isDragging = 'end';
@@ -216,10 +213,9 @@ function clearGridBoard() {
 // ============================================================
 
 function initCanvas() {
-  // Scale for crisp rendering on high-DPI screens
   const dpr = window.devicePixelRatio || 1;
-  canvasEl.width  = CANVAS_WIDTH  * dpr;
-  canvasEl.height = CANVAS_HEIGHT * dpr;
+  canvasEl.width        = CANVAS_WIDTH  * dpr;
+  canvasEl.height       = CANVAS_HEIGHT * dpr;
   canvasEl.style.width  = CANVAS_WIDTH  + 'px';
   canvasEl.style.height = CANVAS_HEIGHT + 'px';
   ctx.scale(dpr, dpr);
@@ -239,7 +235,7 @@ function renderCanvas() {
   ctx.fillStyle = '#1e293b';
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-  // Subtle dot grid for spatial reference
+  // Dot grid
   ctx.fillStyle = '#2d3f55';
   for (let x = 40; x < CANVAS_WIDTH; x += 40) {
     for (let y = 40; y < CANVAS_HEIGHT; y += 40) {
@@ -253,7 +249,7 @@ function renderCanvas() {
   for (const o of state.canvasObstacles) {
     ctx.beginPath();
     ctx.arc(o.cx, o.cy, o.r, 0, Math.PI * 2);
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle   = '#0f172a';
     ctx.fill();
     ctx.strokeStyle = '#475569';
     ctx.lineWidth   = 1.5;
@@ -273,20 +269,43 @@ function renderCanvas() {
     ctx.setLineDash([]);
   }
 
-  // Tree / roadmap edges from last run
-  if (state.canvasEdges.length > 0) {
-    const isRoadmap = state.canvasEdges[0].subtype === 'roadmap';
+  // Collision edges (drawn first so tree edges appear on top)
+  if (state.canvasCollisionEdges.length > 0) {
     ctx.beginPath();
-    ctx.strokeStyle = isRoadmap ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.65)';
-    ctx.lineWidth   = isRoadmap ? 0.8 : 1;
-    for (const e of state.canvasEdges) {
+    ctx.strokeStyle = 'rgba(239,68,68,0.35)';
+    ctx.lineWidth   = 1;
+    for (const e of state.canvasCollisionEdges) {
       ctx.moveTo(e.x1, e.y1);
       ctx.lineTo(e.x2, e.y2);
     }
     ctx.stroke();
   }
 
-  // Path from last run
+  // Roadmap edges
+  if (state.canvasRoadmapEdges.length > 0) {
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(59,130,246,0.3)';
+    ctx.lineWidth   = 0.8;
+    for (const e of state.canvasRoadmapEdges) {
+      ctx.moveTo(e.x1, e.y1);
+      ctx.lineTo(e.x2, e.y2);
+    }
+    ctx.stroke();
+  }
+
+  // Tree edges
+  if (state.canvasTreeEdges.length > 0) {
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(59,130,246,0.65)';
+    ctx.lineWidth   = 1;
+    for (const e of state.canvasTreeEdges) {
+      ctx.moveTo(e.x1, e.y1);
+      ctx.lineTo(e.x2, e.y2);
+    }
+    ctx.stroke();
+  }
+
+  // Path
   if (state.canvasPath && state.canvasPath.length > 1) {
     ctx.beginPath();
     ctx.moveTo(state.canvasPath[0].x, state.canvasPath[0].y);
@@ -300,7 +319,7 @@ function renderCanvas() {
     ctx.lineJoin    = 'miter';
   }
 
-  // Start and end markers on top of everything
+  // Start / end markers on top
   drawCirclePoint(state.canvasStart, '#22c55e', 'S');
   drawCirclePoint(state.canvasEnd,   '#ef4444', 'E');
 }
@@ -313,10 +332,10 @@ function drawCirclePoint(pt, color, label) {
   ctx.strokeStyle = 'rgba(255,255,255,0.8)';
   ctx.lineWidth   = 1.5;
   ctx.stroke();
-  ctx.fillStyle     = '#fff';
-  ctx.font          = 'bold 10px sans-serif';
-  ctx.textAlign     = 'center';
-  ctx.textBaseline  = 'middle';
+  ctx.fillStyle    = '#fff';
+  ctx.font         = 'bold 10px sans-serif';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
   ctx.fillText(label, pt.x, pt.y);
 }
 
@@ -332,9 +351,19 @@ function pointNear(a, b, r) {
 }
 
 function onCanvasMouseDown(e) {
-  if (state.isRunning) return;
   e.preventDefault();
   const pos = getCanvasPos(e);
+
+  if (state.isRunning) {
+    // While running: only allow obstacle drawing (not point dragging)
+    if (!pointNear(pos, state.canvasStart, 16) && !pointNear(pos, state.canvasEnd, 16)) {
+      state.isDrawingObstacle     = true;
+      state.obstacleStart         = pos;
+      state.currentObstacleRadius = 0;
+      state.isMouseDownCanvas     = true;
+    }
+    return;
+  }
 
   if      (pointNear(pos, state.canvasStart, 16)) state.isDraggingPoint = 'start';
   else if (pointNear(pos, state.canvasEnd,   16)) state.isDraggingPoint = 'end';
@@ -348,9 +377,8 @@ function onCanvasMouseDown(e) {
 
 function onCanvasContextMenu(e) {
   e.preventDefault();
-  if (state.isRunning) return;
+  // Right-click removes topmost obstacle — allowed even while running
   const pos = getCanvasPos(e);
-  // Remove the topmost obstacle that contains the click point
   for (let i = state.canvasObstacles.length - 1; i >= 0; i--) {
     const o = state.canvasObstacles[i];
     if ((pos.x - o.cx) ** 2 + (pos.y - o.cy) ** 2 <= o.r ** 2) {
@@ -362,20 +390,21 @@ function onCanvasContextMenu(e) {
 }
 
 function clearCanvasPath() {
-  state.canvasEdges = [];
-  state.canvasPath  = null;
+  state.canvasTreeEdges      = [];
+  state.canvasRoadmapEdges   = [];
+  state.canvasCollisionEdges = [];
+  state.canvasPath           = null;
   renderCanvas();
 }
 
 function clearCanvasBoard() {
-  state.canvasObstacles = [];
-  state.canvasEdges     = [];
-  state.canvasPath      = null;
+  state.canvasObstacles      = [];
+  state.canvasTreeEdges      = [];
+  state.canvasRoadmapEdges   = [];
+  state.canvasCollisionEdges = [];
+  state.canvasPath           = null;
   renderCanvas();
 }
-
-// Mouse move and up are handled at document level (see below) so drags
-// work even when the pointer leaves the canvas element.
 
 // ============================================================
 // ANIMATION HELPERS
@@ -396,7 +425,6 @@ async function animateGridResult(visitedInOrder, path, speed, token) {
   }
   if (token.cancelled) return;
   if (speed > 0) await sleep(speed * 5);
-
   for (const cell of path) {
     if (token.cancelled) return;
     if (!cell.isStart && !cell.isEnd) {
@@ -407,32 +435,38 @@ async function animateGridResult(visitedInOrder, path, speed, token) {
   }
 }
 
-async function animateSamplingResult({ steps }, speed, token) {
-  state.canvasEdges = [];
-  state.canvasPath  = null;
-
-  // Batch size: more edges per frame at higher speed to avoid slow render loops
-  const batchSize = speed === 0 ? 50 : speed <= 3 ? 10 : 1;
+// Speed is read live from speedSel each frame so the user can change it while running.
+async function animateSamplingResult({ steps }, token) {
+  state.canvasTreeEdges      = [];
+  state.canvasRoadmapEdges   = [];
+  state.canvasCollisionEdges = [];
+  state.canvasPath           = null;
 
   let edgeCount = 0;
+
   for (const step of steps) {
     if (token.cancelled) break;
 
+    const speed     = SAMPLING_SPEED_MAP[speedSel.value] ?? SAMPLING_SPEED_MAP.medium;
+    const batchSize = speed === 0 ? 100 : speed <= 3 ? 15 : 5;
+
     if (step.type === 'edge') {
-      state.canvasEdges.push(step);
+      if      (step.subtype === 'tree')      state.canvasTreeEdges.push(step);
+      else if (step.subtype === 'roadmap')   state.canvasRoadmapEdges.push(step);
+      else if (step.subtype === 'collision') state.canvasCollisionEdges.push(step);
       edgeCount++;
       if (edgeCount % batchSize === 0) {
         renderCanvas();
         if (speed > 0) await sleep(speed);
-        else           await sleep(0); // yield to browser
+        else           await sleep(0); // yield to browser even at max speed
       }
     } else if (step.type === 'path') {
       state.canvasPath = step.points;
       renderCanvas();
-      await sleep(300); // brief pause to highlight the path
+      await sleep(300);
     }
   }
-  renderCanvas(); // ensure final state is drawn
+  renderCanvas(); // final frame
 }
 
 // ============================================================
@@ -446,28 +480,27 @@ async function runAlgorithm() {
   if (!algo) return;
 
   setRunning(true);
-  setStatus('Running…');
+  setStatus('Running\u2026');
 
-  const token = { cancelled: false };
+  const token    = { cancelled: false };
   state.animCancel = token;
 
   try {
     const speedKey = speedSel.value;
     if (state.algorithmType === 'grid') {
       clearGridPath();
-      const speed = GRID_SPEED_MAP[speedKey] ?? GRID_SPEED_MAP.medium;
-      const start = state.grid[state.startNode.row][state.startNode.col];
-      const end   = state.grid[state.endNode.row][state.endNode.col];
+      const speed  = GRID_SPEED_MAP[speedKey] ?? GRID_SPEED_MAP.medium;
+      const start  = state.grid[state.startNode.row][state.startNode.col];
+      const end    = state.grid[state.endNode.row][state.endNode.col];
       const result = algo.run(state.grid, start, end);
       await animateGridResult(result.visitedInOrder, result.path, speed, token);
       if (!token.cancelled) {
         setStatus(result.path.length > 0
-          ? `Done! Path: ${result.path.length} cells  •  Visited: ${result.visitedInOrder.length} cells.`
+          ? `Done! Path: ${result.path.length} cells  \u2022  Visited: ${result.visitedInOrder.length} cells.`
           : 'No path found.');
       }
     } else {
       clearCanvasPath();
-      const speed = SAMPLING_SPEED_MAP[speedKey] ?? SAMPLING_SPEED_MAP.medium;
       const result = algo.run({
         width:     CANVAS_WIDTH,
         height:    CANVAS_HEIGHT,
@@ -475,11 +508,12 @@ async function runAlgorithm() {
         start:     state.canvasStart,
         end:       state.canvasEnd,
       });
-      await animateSamplingResult(result, speed, token);
+      await animateSamplingResult(result, token);
       if (!token.cancelled) {
+        const nEdges = state.canvasTreeEdges.length + state.canvasRoadmapEdges.length;
         setStatus(result.path
-          ? `Done! Path found  (${result.path.length} waypoints,  ${result.steps.filter(s => s.type === 'edge').length} tree edges).`
-          : 'No path found — try removing some obstacles or increasing the canvas area.');
+          ? `Done! Path found  (${result.path.length} waypoints,  ${nEdges} edges,  ${state.canvasCollisionEdges.length} collisions).`
+          : 'No path found \u2014 try removing some obstacles or running again.');
       }
     }
   } finally {
@@ -492,12 +526,18 @@ async function runAlgorithm() {
 // UI MANAGEMENT
 // ============================================================
 
+/** Cancel any in-progress run without clearing the board. */
+function cancelRun() {
+  if (state.animCancel) state.animCancel.cancelled = true;
+  setRunning(false);
+  state.animCancel = null;
+}
+
 function setRunning(running) {
-  state.isRunning         = running;
-  btnVisualize.disabled   = running;
-  algorithmSel.disabled   = running;
-  algorithmTypeSel.disabled = running;
-  speedSel.disabled       = running;
+  state.isRunning       = running;
+  btnVisualize.disabled = running;
+  // Speed and obstacle interaction remain live during a run.
+  // Algorithm/type selects are not disabled – changes cancel the run instead.
 }
 
 function setStatus(msg) {
@@ -507,8 +547,8 @@ function setStatus(msg) {
 function populateAlgorithmDropdown(type) {
   algorithmSel.innerHTML = '';
   for (const algo of Algorithm.getByType(type)) {
-    const opt     = document.createElement('option');
-    opt.value     = algo.id;
+    const opt       = document.createElement('option');
+    opt.value       = algo.id;
     opt.textContent = algo.displayName;
     algorithmSel.appendChild(opt);
   }
@@ -517,7 +557,8 @@ function populateAlgorithmDropdown(type) {
 }
 
 function switchAlgorithmType(type) {
-  state.algorithmType = type;
+  state.algorithmType       = type;
+  algorithmTypeSel.value    = type;
 
   if (type === 'grid') {
     gridEl.classList.remove('hidden');
@@ -542,12 +583,45 @@ function updateFooterHint(type) {
   if (!footerHint) return;
   footerHint.textContent = type === 'grid'
     ? 'Click cells to toggle walls  \u2022  Drag start/end nodes to reposition them'
-    : 'Click & drag to place obstacles  \u2022  Right-click obstacle to remove  \u2022  Drag start/end to reposition';
+    : 'Click & drag to draw obstacles  \u2022  Right-click to remove  \u2022  Drag start/end to reposition  \u2022  Speed & obstacles can be changed while running';
+}
+
+// ---------------------------------------------------------------------------
+// Minimal JS syntax highlighter for the Implementation tab
+// ---------------------------------------------------------------------------
+function highlightJS(raw) {
+  // Escape HTML entities so injected source can't break the DOM
+  const safe = raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Single-pass tokeniser — patterns checked in priority order via alternation
+  const TOKEN_RE = new RegExp([
+    '(\\/\\*[\\s\\S]*?\\*\\/)',                                        // block comment
+    '(\\/\\/[^\\n]*)',                                                  // line comment
+    '(`(?:\\\\[\\s\\S]|[^`])*`)',                                      // template literal
+    '("(?:\\\\[\\s\\S]|[^"\\n])*")',                                   // double-quoted string
+    "('(?:\\\\[\\s\\S]|[^'\\n])*')",                                   // single-quoted string
+    '\\b(const|let|var|function|class|static|return|if|else|for|' +
+      'while|break|continue|new|this|of|in|true|false|null|' +
+      'undefined|Infinity|typeof|instanceof|async|await)\\b',          // keywords
+    '\\b(0x[0-9a-fA-F]+|\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)\\b',     // numbers
+    '\\b([A-Za-z_$][A-Za-z0-9_$]*)(?=\\s*\\()',                       // function/method calls
+  ].join('|'), 'g');
+
+  return safe.replace(TOKEN_RE, (match, blockCmt, lineCmt, tmpl, dStr, sStr, kw, num, fn) => {
+    if (blockCmt || lineCmt) return `<span class="hl-comment">${match}</span>`;
+    if (tmpl || dStr || sStr) return `<span class="hl-string">${match}</span>`;
+    if (kw)                   return `<span class="hl-keyword">${match}</span>`;
+    if (num)                  return `<span class="hl-number">${match}</span>`;
+    if (fn)                   return `<span class="hl-fn">${match}</span>`;
+    return match;
+  });
 }
 
 function updateInfoPanel(algo) {
   if (!algo) return;
-
   document.getElementById('info-name').textContent = algo.displayName;
   document.getElementById('info-description').textContent = algo.description;
 
@@ -561,27 +635,19 @@ function updateInfoPanel(algo) {
   }
 
   document.getElementById('pseudocode-content').textContent = algo.pseudocode;
-
-  const implHeader = `// ${algo.displayName} — run() implementation\n\n`;
-  document.getElementById('implementation-content').textContent = implHeader + algo.run.toString();
+  const header = `// ${algo.displayName} — run() implementation\n\n`;
+  document.getElementById('implementation-content').innerHTML = highlightJS(header + algo.run.toString());
 }
 
 // ============================================================
-// DOCUMENT-LEVEL MOUSE EVENTS  (handles drags that leave the canvas)
+// DOCUMENT-LEVEL MOUSE EVENTS
 // ============================================================
 
 document.addEventListener('mousemove', e => {
-  // Grid drag
-  if (state.isMouseDown && state.isDragging && state.algorithmType === 'grid') {
-    // handled by onCellMouseEnter
-    return;
-  }
-
-  // Canvas drag / draw
   if (!state.isMouseDownCanvas) return;
   const rect = canvasEl.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+  const x    = e.clientX - rect.left;
+  const y    = e.clientY - rect.top;
 
   if (state.isDraggingPoint === 'start') {
     state.canvasStart = { x: clamp(x, 0, CANVAS_WIDTH), y: clamp(y, 0, CANVAS_HEIGHT) };
@@ -602,7 +668,7 @@ document.addEventListener('mouseup', () => {
   state.isMouseDown = false;
   state.isDragging  = null;
 
-  // Canvas – finalise obstacle if still drawing
+  // Canvas – finalise obstacle
   if (state.isDrawingObstacle) {
     if (state.currentObstacleRadius > 8) {
       state.canvasObstacles.push({
@@ -627,34 +693,37 @@ document.addEventListener('mouseup', () => {
 btnVisualize.addEventListener('click', runAlgorithm);
 
 btnClearPath.addEventListener('click', () => {
-  if (state.isRunning) return;
+  cancelRun();
   if (state.algorithmType === 'grid') clearGridPath();
   else                                clearCanvasPath();
   setStatus('Path cleared.');
 });
 
 btnClearBoard.addEventListener('click', () => {
-  // Cancel any in-progress animation
-  if (state.animCancel) state.animCancel.cancelled = true;
-  setRunning(false);
-
+  cancelRun();
   if (state.algorithmType === 'grid') clearGridBoard();
   else                                clearCanvasBoard();
   setStatus('Board cleared.');
 });
 
+// Changing algorithm type cancels the run and clears the board
 algorithmTypeSel.addEventListener('change', () => {
-  if (state.isRunning) return;
+  cancelRun();
+  if (state.algorithmType === 'grid') clearGridBoard();
+  else                                clearCanvasBoard();
   switchAlgorithmType(algorithmTypeSel.value);
 });
 
+// Changing algorithm cancels the run and clears the path
 algorithmSel.addEventListener('change', () => {
+  cancelRun();
+  if (state.algorithmType === 'grid') clearGridPath();
+  else                                clearCanvasPath();
+
   const algo = Algorithm.getById(algorithmSel.value);
   if (algo) updateInfoPanel(algo);
-});
 
-// Reset tab to pseudocode when algorithm changes
-algorithmSel.addEventListener('change', () => {
+  // Reset info panel to pseudocode tab
   document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
   document.getElementById('tab-pseudocode').classList.remove('hidden');
   document.getElementById('tab-implementation').classList.add('hidden');
@@ -674,4 +743,4 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // ============================================================
 initGrid();
 initCanvas();
-switchAlgorithmType('grid');
+switchAlgorithmType('sampling');

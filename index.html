@@ -19,7 +19,7 @@
           <label for="algorithm-type">Type</label>
           <select id="algorithm-type">
             <option value="grid">Grid-based</option>
-            <option value="sampling">Sampling-based</option>
+            <option value="sampling" selected>Sampling-based</option>
           </select>
         </div>
 
@@ -43,8 +43,8 @@
           <button id="btn-clear-board" class="btn btn-secondary">Clear Board</button>
         </div>
 
-        <!-- Grid legend -->
-        <div class="legend" id="grid-legend">
+        <!-- Grid legend (hidden when sampling mode active) -->
+        <div class="legend hidden" id="grid-legend">
           <span class="legend-item"><span class="legend-box start"></span>Start</span>
           <span class="legend-item"><span class="legend-box end"></span>End</span>
           <span class="legend-item"><span class="legend-box wall"></span>Wall</span>
@@ -52,12 +52,13 @@
           <span class="legend-item"><span class="legend-box path"></span>Shortest Path</span>
         </div>
 
-        <!-- Sampling legend (hidden by default) -->
-        <div class="legend hidden" id="sampling-legend">
+        <!-- Sampling legend (shown by default, hidden when grid mode active) -->
+        <div class="legend" id="sampling-legend">
           <span class="legend-item"><span class="legend-circle" style="background:#22c55e;"></span>Start</span>
           <span class="legend-item"><span class="legend-circle" style="background:#ef4444;"></span>End</span>
           <span class="legend-item"><span class="legend-circle" style="background:#0f172a;border-color:#475569;"></span>Obstacle</span>
           <span class="legend-item"><span class="legend-line" style="background:rgba(59,130,246,0.65);"></span>Tree / Roadmap</span>
+          <span class="legend-item"><span class="legend-line" style="background:rgba(239,68,68,0.5);"></span>Collision</span>
           <span class="legend-item"><span class="legend-line" style="background:#fbbf24;height:4px;"></span>Path</span>
         </div>
       </section>
