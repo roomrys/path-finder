@@ -476,8 +476,8 @@ async function animateSamplingResult({ steps }, token) {
 async function runAlgorithm() {
   if (state.isRunning) return;
 
-  const algo = Algorithm.getById(algorithmSel.value);
-  if (!algo) return;
+  const entry = Algorithm.getById(algorithmSel.value);
+  if (!entry) return;
 
   setRunning(true);
   setStatus('Running\u2026');
@@ -492,7 +492,7 @@ async function runAlgorithm() {
       const speed  = GRID_SPEED_MAP[speedKey] ?? GRID_SPEED_MAP.medium;
       const start  = state.grid[state.startNode.row][state.startNode.col];
       const end    = state.grid[state.endNode.row][state.endNode.col];
-      const result = algo.run(state.grid, start, end);
+      const result = entry.impl.run(state.grid, start, end);
       await animateGridResult(result.visitedInOrder, result.path, speed, token);
       if (!token.cancelled) {
         setStatus(result.path.length > 0
@@ -501,7 +501,7 @@ async function runAlgorithm() {
       }
     } else {
       clearCanvasPath();
-      const result = algo.run({
+      const result = entry.impl.run({
         width:     CANVAS_WIDTH,
         height:    CANVAS_HEIGHT,
         obstacles: state.canvasObstacles,
@@ -546,14 +546,14 @@ function setStatus(msg) {
 
 function populateAlgorithmDropdown(type) {
   algorithmSel.innerHTML = '';
-  for (const algo of Algorithm.getByType(type)) {
+  for (const entry of Algorithm.getAllOfType(type)) {
     const opt       = document.createElement('option');
-    opt.value       = algo.id;
-    opt.textContent = algo.displayName;
+    opt.value       = entry.info.id;
+    opt.textContent = entry.info.displayName;
     algorithmSel.appendChild(opt);
   }
-  const first = Algorithm.getByType(type)[0];
-  if (first) updateInfoPanel(first);
+  const entries = Algorithm.getAllOfType(type);
+  if (entries.length) updateInfoPanel(entries[0].info, entries[0].impl);
 }
 
 function switchAlgorithmType(type) {
@@ -620,23 +620,55 @@ function highlightJS(raw) {
   });
 }
 
-function updateInfoPanel(algo) {
-  if (!algo) return;
-  document.getElementById('info-name').textContent = algo.displayName;
-  document.getElementById('info-description').textContent = algo.description;
+function buildStatsHTML(info) {
+  const rows = [
+    ['Year',             info.year             ?? '—'],
+    ['Time Complexity',  info.timeComplexity   || '—'],
+    ['Space Complexity', info.spaceComplexity  || '—'],
+    ['Optimal',          info.optimal          || '—'],
+    ['Complete',         info.complete         || '—'],
+  ];
+  if (info.graphType         !== undefined) rows.push(['Graph Type',        info.graphType        || '—']);
+  if (info.heuristic         !== undefined) rows.push(['Heuristic',         info.heuristic        || 'None']);
+  if (info.samplingStrategy  !== undefined) rows.push(['Sampling Strategy', info.samplingStrategy || '—']);
+  if (info.queryType         !== undefined) rows.push(['Query Type',        info.queryType        || '—']);
+  if (info.predecessor)                     rows.push(['Predecessor',       info.predecessor]);
+  if (info.successor)                       rows.push(['Successor',         info.successor]);
+
+  const statsRows = rows.map(([label, value]) =>
+    `<div class="stat-row"><span class="stat-label">${label}</span><span class="stat-value">${value}</span></div>`
+  ).join('');
+
+  const improvement = info.notableImprovement
+    ? `<div class="stat-improvement"><span class="stat-label">Notable Improvement</span><p>${info.notableImprovement}</p></div>`
+    : '';
+
+  const goodFor = (info.goodFor || []).map(s => `<span class="stat-badge stat-badge-good">${s}</span>`).join('');
+  const badFor  = (info.badFor  || []).map(s => `<span class="stat-badge stat-badge-bad">${s}</span>`).join('');
+
+  return `<div class="stat-grid">${statsRows}</div>${improvement}` +
+    (goodFor ? `<div class="stat-section-label">Good for</div><div class="stat-badges">${goodFor}</div>` : '') +
+    (badFor  ? `<div class="stat-section-label">Avoid when</div><div class="stat-badges">${badFor}</div>` : '');
+}
+
+function updateInfoPanel(info, impl) {
+  if (!info) return;
+  document.getElementById('info-name').textContent        = info.displayName;
+  document.getElementById('info-description').textContent = info.description;
 
   const paperLink = document.getElementById('info-paper');
-  if (algo.paperUrl) {
-    paperLink.href        = algo.paperUrl;
-    paperLink.textContent = (algo.paperTitle || 'Read Paper') + ' \u2192';
+  if (info.paperUrl) {
+    paperLink.href        = info.paperUrl;
+    paperLink.textContent = (info.paperTitle || 'Read Paper') + ' \u2192';
     paperLink.classList.remove('hidden');
   } else {
     paperLink.classList.add('hidden');
   }
 
-  document.getElementById('pseudocode-content').textContent = algo.pseudocode;
-  const header = `// ${algo.displayName} — run() implementation\n\n`;
-  document.getElementById('implementation-content').innerHTML = highlightJS(header + algo.run.toString());
+  document.getElementById('pseudocode-content').textContent = info.pseudocode;
+  const header = `// ${info.displayName} — run() implementation\n\n`;
+  document.getElementById('implementation-content').innerHTML = highlightJS(header + impl.run.toString());
+  document.getElementById('stats-content').innerHTML = buildStatsHTML(info);
 }
 
 // ============================================================
@@ -720,13 +752,14 @@ algorithmSel.addEventListener('change', () => {
   if (state.algorithmType === 'grid') clearGridPath();
   else                                clearCanvasPath();
 
-  const algo = Algorithm.getById(algorithmSel.value);
-  if (algo) updateInfoPanel(algo);
+  const entry = Algorithm.getById(algorithmSel.value);
+  if (entry) updateInfoPanel(entry.info, entry.impl);
 
   // Reset info panel to pseudocode tab
   document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
   document.getElementById('tab-pseudocode').classList.remove('hidden');
   document.getElementById('tab-implementation').classList.add('hidden');
+  document.getElementById('tab-stats').classList.add('hidden');
 });
 
 document.querySelectorAll('.tab-btn').forEach(btn => {

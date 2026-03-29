@@ -80,12 +80,16 @@
         <div class="info-tabs">
           <button class="tab-btn active" data-tab="pseudocode">Pseudocode</button>
           <button class="tab-btn" data-tab="implementation">Implementation</button>
+          <button class="tab-btn" data-tab="stats">Stats</button>
         </div>
         <div id="tab-pseudocode" class="tab-content">
           <pre id="pseudocode-content" class="code-block"></pre>
         </div>
         <div id="tab-implementation" class="tab-content hidden">
           <pre id="implementation-content" class="code-block"></pre>
+        </div>
+        <div id="tab-stats" class="tab-content hidden">
+          <div id="stats-content"></div>
         </div>
       </section>
 
@@ -99,8 +103,9 @@
       <p id="footer-hint">Click cells to toggle walls &bull; Drag start/end nodes to reposition them</p>
     </footer>
 
-    <!-- Script loading order matters: registry must come before algorithms -->
+    <!-- Script loading order matters: registry -> impls -> algorithms -> main -->
     <script src="js/algorithm-registry.js"></script>
+    <script src="js/algorithm-impls.js"></script>
     <script src="js/grid-algorithms.js"></script>
     <script src="js/sampling-algorithms.js"></script>
     <script src="js/main.js"></script>

@@ -2,23 +2,21 @@
 
 /* ============================================================
    js/sampling-algorithms.js
-   Sampling-based motion-planning algorithms.
-   Each class extends SamplingAlgorithm and self-registers.
+   Each algorithm is defined as two classes:
+     [Name]Info  extends SamplingAlgorithmInfo  — metadata only
+     [Name]Impl  extends SamplingAlgorithmImpl  — run() only
+   Paired via Algorithm.register(Info, Impl).
 
    run(env) -> { steps: Step[], path: Point[]|null }
      env  = { width, height, obstacles, start, end }
      Step = { type:'edge', subtype:'tree'|'roadmap'|'collision', x1,y1,x2,y2 }
           | { type:'path', points:[{x,y}...] }
-
-   Collision edges (subtype:'collision') mark attempted extensions
-   where the sampled point was free but the connecting segment
-   intersected an obstacle.
    ============================================================ */
 
-// ---------------------------------------------------------------------------
-// RRT – Rapidly-exploring Random Tree (LaValle, 1998)
-// ---------------------------------------------------------------------------
-class RRT extends SamplingAlgorithm {
+// ============================================================
+// RRT – Rapidly-exploring Random Tree
+// ============================================================
+class RRTInfo extends SamplingAlgorithmInfo {
   static id          = 'rrt';
   static displayName = 'RRT';
   static description = 'Rapidly-exploring Random Tree. Grows a tree by sampling the space at random and steering toward samples. Probabilistically complete but not optimal.';
@@ -43,6 +41,23 @@ Repeat until goal reached or MAX_ITER exceeded:
       Record collision attempt (visualised in red)
 
 Return  failure  (no path found in MAX_ITER iterations)`;
+
+  static year               = 1998;
+  static timeComplexity     = 'O(n log n) expected';
+  static spaceComplexity    = 'O(n)';
+  static optimal            = 'No — finds a path, not the shortest one';
+  static complete           = 'Probabilistically complete';
+  static predecessor        = null;
+  static notableImprovement = 'First practical randomized tree planner for high-dimensional spaces';
+  static successor          = 'RRT*, RRTConnect, InformedRRT*';
+  static goodFor            = ['Single-query planning', 'High-dimensional spaces', 'Fast initial solutions'];
+  static badFor             = ['Optimal paths', 'Narrow passages (low probability of sampling through)'];
+  static samplingStrategy   = 'tree';
+  static queryType          = 'single';
+}
+
+class RRTImpl extends SamplingAlgorithmImpl {
+  static id = 'rrt';
 
   static MAX_ITER       = 3000;
   static STEP_SIZE      = 25;
@@ -86,12 +101,12 @@ Return  failure  (no path found in MAX_ITER iterations)`;
     return { steps, path: null };
   }
 }
-Algorithm.register(RRT);
+Algorithm.register(RRTInfo, RRTImpl);
 
-// ---------------------------------------------------------------------------
-// RRT* – Asymptotically Optimal RRT (Karaman & Frazzoli, 2011)
-// ---------------------------------------------------------------------------
-class RRTStar extends SamplingAlgorithm {
+// ============================================================
+// RRT* – Asymptotically Optimal RRT
+// ============================================================
+class RRTStarInfo extends SamplingAlgorithmInfo {
   static id          = 'rrt-star';
   static displayName = 'RRT*';
   static description = 'Asymptotically optimal extension of RRT. Rewires the tree to minimise path cost each iteration, converging toward the global optimum as samples increase.';
@@ -120,6 +135,23 @@ For i = 1 to MAX_ITER:
     Track best collision-free connection to goal
 
 Return best path found  (or failure if goal never reached)`;
+
+  static year               = 2011;
+  static timeComplexity     = 'O(n log n)';
+  static spaceComplexity    = 'O(n)';
+  static optimal            = 'Asymptotically optimal';
+  static complete           = 'Probabilistically complete';
+  static predecessor        = 'RRT';
+  static notableImprovement = 'Near-neighbour rewiring guarantees asymptotic optimality';
+  static successor          = 'InformedRRT*, BIT*';
+  static goodFor            = ['Optimal paths', 'Anytime planning', 'Continuous environments'];
+  static badFor             = ['Real-time planning (slower convergence than RRT)', 'Memory-constrained settings'];
+  static samplingStrategy   = 'tree';
+  static queryType          = 'single';
+}
+
+class RRTStarImpl extends SamplingAlgorithmImpl {
+  static id = 'rrt-star';
 
   static MAX_ITER        = 2000;
   static STEP_SIZE       = 25;
@@ -196,12 +228,12 @@ Return best path found  (or failure if goal never reached)`;
     return { steps, path };
   }
 }
-Algorithm.register(RRTStar);
+Algorithm.register(RRTStarInfo, RRTStarImpl);
 
-// ---------------------------------------------------------------------------
-// PRM – Probabilistic Roadmap Method (Kavraki et al., 1996)
-// ---------------------------------------------------------------------------
-class PRM extends SamplingAlgorithm {
+// ============================================================
+// PRM – Probabilistic Roadmap Method
+// ============================================================
+class PRMInfo extends SamplingAlgorithmInfo {
   static id          = 'prm';
   static displayName = 'PRM';
   static description = 'Probabilistic Roadmap Method. Samples free space to build a reusable roadmap graph, then queries it with BFS to find a path between start and goal.';
@@ -223,6 +255,23 @@ Connect start and goal into R with the same rule
 Run BFS on R from start to goal
 If reachable: trace parents and return path
 Else: return failure`;
+
+  static year               = 1996;
+  static timeComplexity     = 'O(n² log n)';
+  static spaceComplexity    = 'O(n²)';
+  static optimal            = 'No — roadmap quality depends on sample density';
+  static complete           = 'Probabilistically complete';
+  static predecessor        = null;
+  static notableImprovement = 'Reusable roadmap amortises construction cost across multiple queries';
+  static successor          = 'FMT*, BIT*';
+  static goodFor            = ['Multi-query planning', 'Static environments', 'Well-connected spaces'];
+  static badFor             = ['Dynamic environments', 'Narrow passages', 'Single-query tasks (RRT is faster)'];
+  static samplingStrategy   = 'roadmap';
+  static queryType          = 'multi';
+}
+
+class PRMImpl extends SamplingAlgorithmImpl {
+  static id = 'prm';
 
   static N_SAMPLES      = 300;
   static CONNECT_RADIUS = 80;
@@ -283,12 +332,12 @@ Else: return failure`;
     return { steps, path };
   }
 }
-Algorithm.register(PRM);
+Algorithm.register(PRMInfo, PRMImpl);
 
-// ---------------------------------------------------------------------------
-// RRTConnect – Bidirectional RRT (Kuffner & LaValle, 2000)
-// ---------------------------------------------------------------------------
-class RRTConnect extends SamplingAlgorithm {
+// ============================================================
+// RRTConnect – Bidirectional RRT
+// ============================================================
+class RRTConnectInfo extends SamplingAlgorithmInfo {
   static id          = 'rrt-connect';
   static displayName = 'RRTConnect';
   static description = 'Bidirectional RRT. Grows two trees simultaneously – one from start, one from goal – and greedily tries to connect them each iteration.';
@@ -309,6 +358,23 @@ Repeat until MAX_ITER:
   Swap T_a and T_b
 
 Return failure`;
+
+  static year               = 2000;
+  static timeComplexity     = 'O(n log n)';
+  static spaceComplexity    = 'O(n)';
+  static optimal            = 'No — finds a path quickly but not guaranteed optimal';
+  static complete           = 'Probabilistically complete';
+  static predecessor        = 'RRT';
+  static notableImprovement = 'Bidirectional growth drastically reduces time to first solution';
+  static successor          = null;
+  static goodFor            = ['Fastest initial solutions', 'Single-query planning', 'Open spaces'];
+  static badFor             = ['Optimal paths', 'Environments requiring careful cost management'];
+  static samplingStrategy   = 'tree';
+  static queryType          = 'single';
+}
+
+class RRTConnectImpl extends SamplingAlgorithmImpl {
+  static id = 'rrt-connect';
 
   static MAX_ITER  = 2200;
   static STEP_SIZE = 25;
@@ -371,16 +437,16 @@ Return failure`;
   static run({ width, height, obstacles, start, end }) {
     const steps = [];
 
-    let treeA       = [{ x: start.x, y: start.y, parentIdx: -1 }];
-    let treeB       = [{ x: end.x,   y: end.y,   parentIdx: -1 }];
-    let aFromStart  = true;
+    let treeA      = [{ x: start.x, y: start.y, parentIdx: -1 }];
+    let treeB      = [{ x: end.x,   y: end.y,   parentIdx: -1 }];
+    let aFromStart = true;
 
     for (let i = 0; i < this.MAX_ITER; i++) {
       const qRand   = this.randomPoint(width, height);
       const newAIdx = this._extend(treeA, qRand, obstacles, steps);
 
       if (newAIdx !== -1) {
-        const qNew      = treeA[newAIdx];
+        const qNew       = treeA[newAIdx];
         const connectRes = this._connect(treeB, qNew, obstacles, steps);
 
         if (connectRes.connected) {
@@ -389,8 +455,8 @@ Return failure`;
           const bBranch = this._trace(treeB, connectRes.idx);    // connectB -> root_B
 
           const path = aFromStart
-            ? aBranch.concat(bBranch)                          // start->newA + connectB->goal
-            : bBranch.reverse().concat(aBranch.reverse());     // start->connectB + newA->goal
+            ? aBranch.concat(bBranch)                        // start->newA + connectB->goal
+            : bBranch.reverse().concat(aBranch.reverse());   // start->connectB + newA->goal
           steps.push({ type: 'path', points: path });
           return { steps, path };
         }
@@ -406,12 +472,12 @@ Return failure`;
     return { steps, path: null };
   }
 }
-Algorithm.register(RRTConnect);
+Algorithm.register(RRTConnectInfo, RRTConnectImpl);
 
-// ---------------------------------------------------------------------------
-// InformedRRT* – informed subset sampling (Gammell et al., 2014)
-// ---------------------------------------------------------------------------
-class InformedRRTStar extends SamplingAlgorithm {
+// ============================================================
+// InformedRRT* – informed subset sampling
+// ============================================================
+class InformedRRTStarInfo extends SamplingAlgorithmInfo {
   static id          = 'informed-rrt-star';
   static displayName = 'InformedRRT*';
   static description = 'RRT* variant that, once an initial solution is found, restricts sampling to an ellipsoidal subset guaranteed to improve the current best cost.';
@@ -428,6 +494,23 @@ Then, sample only from the prolate hyperspheroid:
 
 Continue rewiring within that informed subset
 Each new solution tightens the ellipse`;
+
+  static year               = 2014;
+  static timeComplexity     = 'O(n log n)';
+  static spaceComplexity    = 'O(n)';
+  static optimal            = 'Asymptotically optimal';
+  static complete           = 'Probabilistically complete';
+  static predecessor        = 'RRT*';
+  static notableImprovement = 'Ellipsoidal informed sampling shrinks search space after first solution, accelerating convergence';
+  static successor          = 'BIT*';
+  static goodFor            = ['Fast convergence to optimum', 'When initial solution is found quickly', 'Tight spaces requiring precise paths'];
+  static badFor             = ['Environments where an initial solution is very hard to find'];
+  static samplingStrategy   = 'tree';
+  static queryType          = 'single';
+}
+
+class InformedRRTStarImpl extends SamplingAlgorithmImpl {
+  static id = 'informed-rrt-star';
 
   static MAX_ITER        = 2500;
   static STEP_SIZE       = 24;
@@ -514,12 +597,12 @@ Each new solution tightens the ellipse`;
     return { steps, path };
   }
 }
-Algorithm.register(InformedRRTStar);
+Algorithm.register(InformedRRTStarInfo, InformedRRTStarImpl);
 
-// ---------------------------------------------------------------------------
-// TRRT – Transition-based RRT (Jaillet, Cortes, Simeon, 2008)
-// ---------------------------------------------------------------------------
-class TRRT extends SamplingAlgorithm {
+// ============================================================
+// TRRT – Transition-based RRT
+// ============================================================
+class TRRTInfo extends SamplingAlgorithmInfo {
   static id          = 'trrt';
   static displayName = 'TRRT';
   static description = 'Transition-based RRT. Accepts moves toward higher-cost (lower-clearance) states with probability exp(-delta/T), using a temperature schedule to balance exploration and obstacle avoidance.';
@@ -540,6 +623,23 @@ Grow an RRT with probabilistic acceptance:
     Reject;  T <- T * 1.02  (heat)
 
 Return path if goal reached, else failure`;
+
+  static year               = 2008;
+  static timeComplexity     = 'O(n log n)';
+  static spaceComplexity    = 'O(n)';
+  static optimal            = 'No — cost-aware but not asymptotically optimal';
+  static complete           = 'Probabilistically complete';
+  static predecessor        = 'RRT';
+  static notableImprovement = 'Temperature schedule biases tree away from high-cost (low-clearance) regions';
+  static successor          = null;
+  static goodFor            = ['Maximising clearance from obstacles', 'Continuous cost-space planning', 'Cost-map aware environments'];
+  static badFor             = ['Optimal path length', 'Environments without meaningful cost gradients'];
+  static samplingStrategy   = 'tree';
+  static queryType          = 'single';
+}
+
+class TRRTImpl extends SamplingAlgorithmImpl {
+  static id = 'trrt';
 
   static MAX_ITER       = 2600;
   static STEP_SIZE      = 22;
@@ -602,12 +702,12 @@ Return path if goal reached, else failure`;
     return { steps, path: null };
   }
 }
-Algorithm.register(TRRT);
+Algorithm.register(TRRTInfo, TRRTImpl);
 
-// ---------------------------------------------------------------------------
-// EST – Expansive Space Trees (Hsu, Latombe, Motwani, 1999)
-// ---------------------------------------------------------------------------
-class EST extends SamplingAlgorithm {
+// ============================================================
+// EST – Expansive Space Trees
+// ============================================================
+class ESTInfo extends SamplingAlgorithmInfo {
   static id          = 'est';
   static displayName = 'EST';
   static description = 'Expansive Space Trees. Biases expansion toward sparsely explored regions of the tree, improving coverage in high-dimensional or narrow-passage environments.';
@@ -629,6 +729,23 @@ Repeat:
 
 Return failure`;
 
+  static year               = 1999;
+  static timeComplexity     = 'O(n log n)';
+  static spaceComplexity    = 'O(n)';
+  static optimal            = 'No';
+  static complete           = 'Probabilistically complete';
+  static predecessor        = null;
+  static notableImprovement = 'Density-inversely-weighted expansion improves coverage in cluttered environments';
+  static successor          = 'KPIECE1';
+  static goodFor            = ['High-dimensional spaces', 'Narrow passages', 'Expansive environments'];
+  static badFor             = ['Optimal paths', 'Real-time applications'];
+  static samplingStrategy   = 'tree';
+  static queryType          = 'single';
+}
+
+class ESTImpl extends SamplingAlgorithmImpl {
+  static id = 'est';
+
   static MAX_ITER       = 2600;
   static STEP_SIZE      = 22;
   static DENSITY_RADIUS = 55;
@@ -646,9 +763,9 @@ Return failure`;
   }
 
   static run({ width, height, obstacles, start, end }) {
-    const nodes    = [{ x: start.x, y: start.y, parentIdx: -1 }];
-    const steps    = [];
-    const density  = [0]; // incremental density count per node
+    const nodes   = [{ x: start.x, y: start.y, parentIdx: -1 }];
+    const steps   = [];
+    const density = [0]; // incremental density count per node
 
     for (let i = 0; i < this.MAX_ITER; i++) {
       // Choose node inversely weighted by local density
@@ -697,13 +814,12 @@ Return failure`;
     return { steps, path: null };
   }
 }
-Algorithm.register(EST);
+Algorithm.register(ESTInfo, ESTImpl);
 
-// ---------------------------------------------------------------------------
+// ============================================================
 // KPIECE1 – Kinodynamic Planning by Interior-Exterior Cell Exploration
-//           (Şucan & Kavraki, 2009)
-// ---------------------------------------------------------------------------
-class KPIECE1 extends SamplingAlgorithm {
+// ============================================================
+class KPIECE1Info extends SamplingAlgorithmInfo {
   static id          = 'kpiece1';
   static displayName = 'KPIECE1';
   static description = 'Projects states onto a coarse grid and biases expansion toward boundary and under-explored cells, encouraging the tree to push into unvisited space.';
@@ -724,6 +840,23 @@ Repeat:
     If goal reached: return path
 
 Return failure`;
+
+  static year               = 2009;
+  static timeComplexity     = 'O(n log n)';
+  static spaceComplexity    = 'O(n)';
+  static optimal            = 'No';
+  static complete           = 'Probabilistically complete';
+  static predecessor        = 'EST';
+  static notableImprovement = 'Cell-projection biases expansion toward unexplored boundary regions, outperforming EST in cluttered spaces';
+  static successor          = null;
+  static goodFor            = ['Kinodynamic planning', 'Boundary exploration', 'Under-explored region bias'];
+  static badFor             = ['Optimal paths', 'Low-dimensional spaces where EST or RRT suffice'];
+  static samplingStrategy   = 'tree';
+  static queryType          = 'single';
+}
+
+class KPIECE1Impl extends SamplingAlgorithmImpl {
+  static id = 'kpiece1';
 
   static MAX_ITER       = 2600;
   static STEP_SIZE      = 22;
@@ -805,12 +938,12 @@ Return failure`;
     return { steps, path: null };
   }
 }
-Algorithm.register(KPIECE1);
+Algorithm.register(KPIECE1Info, KPIECE1Impl);
 
-// ---------------------------------------------------------------------------
-// FMT* – Fast Marching Tree (Janson et al., 2013)
-// ---------------------------------------------------------------------------
-class FMTStar extends SamplingAlgorithm {
+// ============================================================
+// FMT* – Fast Marching Tree
+// ============================================================
+class FMTStarInfo extends SamplingAlgorithmInfo {
   static id          = 'fmt';
   static displayName = 'FMT*';
   static description = 'Fast Marching Tree. Pre-samples the free space, builds a lazy geometric graph, then grows a tree by expanding the open frontier in order of cost — a single-pass, near-optimal planner.';
@@ -837,7 +970,24 @@ While V_open is not empty:
 
 Return failure`;
 
-  static N_SAMPLES      = 240;
+  static year               = 2015;
+  static timeComplexity     = 'O(n log n)';
+  static spaceComplexity    = 'O(n²)';
+  static optimal            = 'Asymptotically optimal';
+  static complete           = 'Probabilistically complete';
+  static predecessor        = 'PRM, RRT*';
+  static notableImprovement = 'Fast marching wave expansion achieves near-optimal paths in a single forward pass';
+  static successor          = 'BIT*';
+  static goodFor            = ['Batch planning', 'Near-optimal solutions with fixed sample set', 'Static environments'];
+  static badFor             = ['Dynamic environments', 'Real-time replanning', 'Very high dimensions (O(n²) neighbours)'];
+  static samplingStrategy   = 'batch';
+  static queryType          = 'single';
+}
+
+class FMTStarImpl extends SamplingAlgorithmImpl {
+  static id = 'fmt';
+
+  static N_SAMPLES       = 240;
   static NEIGHBOR_RADIUS = 85;
 
   static run({ width, height, obstacles, start, end }) {
@@ -913,12 +1063,12 @@ Return failure`;
     return { steps, path };
   }
 }
-Algorithm.register(FMTStar);
+Algorithm.register(FMTStarInfo, FMTStarImpl);
 
-// ---------------------------------------------------------------------------
-// BIT* – Batch Informed Trees (Gammell et al., 2020)
-// ---------------------------------------------------------------------------
-class BITStar extends SamplingAlgorithm {
+// ============================================================
+// BIT* – Batch Informed Trees
+// ============================================================
+class BITStarInfo extends SamplingAlgorithmInfo {
   static id          = 'bitstar';
   static displayName = 'BIT*';
   static description = 'Batch Informed Trees. Iteratively adds batches of samples to a growing random geometric graph, runs heuristic A* search on it, and uses each new solution to shrink the informed sampling region.';
@@ -933,9 +1083,26 @@ class BITStar extends SamplingAlgorithm {
 
 Return best path found (or failure)`;
 
-  static MAX_BATCHES     = 6;
-  static BATCH_SIZE      = 90;
-  static CONNECT_RADIUS  = 72;
+  static year               = 2020;
+  static timeComplexity     = 'O(n log n) per batch';
+  static spaceComplexity    = 'O(n)';
+  static optimal            = 'Asymptotically optimal';
+  static complete           = 'Probabilistically complete';
+  static predecessor        = 'InformedRRT*, FMT*';
+  static notableImprovement = 'Combines informed ellipsoidal sampling with batch graph search for rapid anytime path improvement';
+  static successor          = null;
+  static goodFor            = ['Anytime planning', 'Tightest asymptotic optimality', 'Time-bounded planning'];
+  static badFor             = ['Single-shot planning (RRTConnect is faster for first path)', 'Very dynamic environments'];
+  static samplingStrategy   = 'batch';
+  static queryType          = 'single';
+}
+
+class BITStarImpl extends SamplingAlgorithmImpl {
+  static id = 'bitstar';
+
+  static MAX_BATCHES    = 6;
+  static BATCH_SIZE     = 90;
+  static CONNECT_RADIUS = 72;
 
   /** A* over the implicit geometric graph; emits tree/collision edges to `steps`. */
   static _runAStar(nodes, startIdx, goalIdx, adj, obstacles, steps) {
@@ -989,10 +1156,10 @@ Return best path found (or failure)`;
   }
 
   static run({ width, height, obstacles, start, end }) {
-    const steps    = [];
-    const nodes    = [{ x: start.x, y: start.y }, { x: end.x, y: end.y }];
-    let bestPath   = null;
-    let bestCost   = Infinity;
+    const steps  = [];
+    const nodes  = [{ x: start.x, y: start.y }, { x: end.x, y: end.y }];
+    let bestPath = null;
+    let bestCost = Infinity;
 
     for (let batch = 0; batch < this.MAX_BATCHES; batch++) {
       for (let i = 0; i < this.BATCH_SIZE; i++) {
@@ -1025,4 +1192,4 @@ Return best path found (or failure)`;
     return { steps, path: bestPath };
   }
 }
-Algorithm.register(BITStar);
+Algorithm.register(BITStarInfo, BITStarImpl);

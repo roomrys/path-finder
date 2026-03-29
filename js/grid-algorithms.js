@@ -2,14 +2,16 @@
 
 /* ============================================================
    js/grid-algorithms.js
-   Grid-based pathfinding algorithms.
-   Each class extends GridAlgorithm and self-registers.
+   Each algorithm is defined as two classes:
+     [Name]Info  extends GridAlgorithmInfo  — metadata only
+     [Name]Impl  extends GridAlgorithmImpl  — run() only
+   Paired via Algorithm.register(Info, Impl).
    ============================================================ */
 
-// ---------------------------------------------------------------------------
+// ============================================================
 // BFS – Breadth-First Search
-// ---------------------------------------------------------------------------
-class BFS extends GridAlgorithm {
+// ============================================================
+class BFSInfo extends GridAlgorithmInfo {
   static id          = 'bfs';
   static displayName = 'Breadth-First Search (BFS)';
   static description = 'Explores all neighbours level-by-level using a queue. Guarantees the shortest path on unweighted grids.';
@@ -28,6 +30,23 @@ While Q is not empty:
 
 Return  no path found`;
 
+  static year               = 1959;
+  static timeComplexity     = 'O(V + E)';
+  static spaceComplexity    = 'O(V)';
+  static optimal            = 'Yes — shortest path on unweighted graphs';
+  static complete           = 'Yes';
+  static predecessor        = null;
+  static notableImprovement = null;
+  static successor          = "Dijkstra's Algorithm (adds edge weights)";
+  static goodFor            = ['Unweighted grids', 'Guaranteed shortest path', 'Small to medium maps'];
+  static badFor             = ['Weighted graphs (use Dijkstra)', 'Memory-constrained environments'];
+  static graphType          = 'Unweighted';
+  static heuristic          = null;
+}
+
+class BFSImpl extends GridAlgorithmImpl {
+  static id = 'bfs';
+
   static run(grid, start, end) {
     const visitedInOrder = [];
     const queue = [start];
@@ -38,7 +57,7 @@ Return  no path found`;
       visitedInOrder.push(current);
       if (current === end) break;
 
-      for (const nb of GridAlgorithm.getNeighbours(grid, current)) {
+      for (const nb of GridAlgorithmImpl.getNeighbours(grid, current)) {
         if (!nb.isVisited) {
           nb.isVisited = true;
           nb.previousNode = current;
@@ -48,16 +67,16 @@ Return  no path found`;
     }
 
     const path = (end.previousNode !== null || end === start)
-      ? GridAlgorithm.retracePath(end) : [];
+      ? GridAlgorithmImpl.retracePath(end) : [];
     return { visitedInOrder, path };
   }
 }
-Algorithm.register(BFS);
+Algorithm.register(BFSInfo, BFSImpl);
 
-// ---------------------------------------------------------------------------
+// ============================================================
 // DFS – Depth-First Search
-// ---------------------------------------------------------------------------
-class DFS extends GridAlgorithm {
+// ============================================================
+class DFSInfo extends GridAlgorithmInfo {
   static id          = 'dfs';
   static displayName = 'Depth-First Search (DFS)';
   static description = 'Explores as far as possible along each branch before backtracking. Does not guarantee the shortest path.';
@@ -76,6 +95,23 @@ While S is not empty:
 
 Return  no path found`;
 
+  static year               = 1959;
+  static timeComplexity     = 'O(V + E)';
+  static spaceComplexity    = 'O(V)';
+  static optimal            = 'No — does not guarantee shortest path';
+  static complete           = 'Yes — on finite graphs';
+  static predecessor        = null;
+  static notableImprovement = null;
+  static successor          = 'Iterative Deepening DFS (IDDFS)';
+  static goodFor            = ['Exploring all reachable cells', 'Detecting whether a path exists', 'Low overhead'];
+  static badFor             = ['Finding shortest paths', 'Large or infinite graphs'];
+  static graphType          = 'Unweighted';
+  static heuristic          = null;
+}
+
+class DFSImpl extends GridAlgorithmImpl {
+  static id = 'dfs';
+
   static run(grid, start, end) {
     const visitedInOrder = [];
     const stack = [start];
@@ -87,7 +123,7 @@ Return  no path found`;
       visitedInOrder.push(current);
       if (current === end) break;
 
-      for (const nb of GridAlgorithm.getNeighbours(grid, current)) {
+      for (const nb of GridAlgorithmImpl.getNeighbours(grid, current)) {
         if (!nb.isVisited) {
           nb.previousNode = current;
           stack.push(nb);
@@ -95,19 +131,19 @@ Return  no path found`;
       }
     }
 
-    const path = end.isVisited ? GridAlgorithm.retracePath(end) : [];
+    const path = end.isVisited ? GridAlgorithmImpl.retracePath(end) : [];
     return { visitedInOrder, path };
   }
 }
-Algorithm.register(DFS);
+Algorithm.register(DFSInfo, DFSImpl);
 
-// ---------------------------------------------------------------------------
+// ============================================================
 // Dijkstra – Dijkstra's Shortest-Path Algorithm
-// ---------------------------------------------------------------------------
-class Dijkstra extends GridAlgorithm {
+// ============================================================
+class DijkstraInfo extends GridAlgorithmInfo {
   static id          = 'dijkstra';
   static displayName = "Dijkstra's Algorithm";
-  static description = 'Expands the lowest-cost unvisited node at every step. Optimal for weighted graphs; equivalent to BFS on uniform-cost grids.';
+  static description = "Expands the lowest-cost unvisited node at every step. Optimal for weighted graphs; equivalent to BFS on uniform-cost grids.";
   static paperUrl    = 'https://doi.org/10.1007/BF01386390';
   static paperTitle  = 'A Note on Two Problems in Connexion with Graphs (Dijkstra, 1959)';
   static pseudocode  =
@@ -127,6 +163,23 @@ While unvisited nodes remain:
 
 Return  no path found`;
 
+  static year               = 1959;
+  static timeComplexity     = 'O((V + E) log V)';
+  static spaceComplexity    = 'O(V)';
+  static optimal            = 'Yes — shortest path on non-negative weighted graphs';
+  static complete           = 'Yes';
+  static predecessor        = 'BFS';
+  static notableImprovement = 'Handles weighted edges; extends BFS to general non-negative cost graphs';
+  static successor          = 'A* Search (adds heuristic guidance)';
+  static goodFor            = ['Weighted graphs', 'Guaranteed shortest path', 'No admissible heuristic available'];
+  static badFor             = ['Unweighted graphs (BFS is faster)', 'Very large graphs without a heuristic (A* is faster)', 'Negative edge weights'];
+  static graphType          = 'Weighted';
+  static heuristic          = null;
+}
+
+class DijkstraImpl extends GridAlgorithmImpl {
+  static id = 'dijkstra';
+
   static run(grid, start, end) {
     const visitedInOrder = [];
     start.distance = 0;
@@ -141,25 +194,25 @@ Return  no path found`;
       visitedInOrder.push(closest);
       if (closest === end) break;
 
-      for (const nb of GridAlgorithm.getNeighbours(grid, closest)) {
+      for (const nb of GridAlgorithmImpl.getNeighbours(grid, closest)) {
         const alt = closest.distance + 1;
         if (alt < nb.distance) {
-          nb.distance = alt;
+          nb.distance     = alt;
           nb.previousNode = closest;
         }
       }
     }
 
-    const path = end.isVisited ? GridAlgorithm.retracePath(end) : [];
+    const path = end.isVisited ? GridAlgorithmImpl.retracePath(end) : [];
     return { visitedInOrder, path };
   }
 }
-Algorithm.register(Dijkstra);
+Algorithm.register(DijkstraInfo, DijkstraImpl);
 
-// ---------------------------------------------------------------------------
+// ============================================================
 // A* – A-Star Search
-// ---------------------------------------------------------------------------
-class AStar extends GridAlgorithm {
+// ============================================================
+class AStarInfo extends GridAlgorithmInfo {
   static id          = 'astar';
   static displayName = 'A* Search';
   static description = 'Combines actual path cost with a Manhattan-distance heuristic to guide the search. Optimal and typically explores far fewer nodes than Dijkstra.';
@@ -185,6 +238,23 @@ While O is not empty:
 
 Return  no path found`;
 
+  static year               = 1968;
+  static timeComplexity     = 'O(E log V)';
+  static spaceComplexity    = 'O(V)';
+  static optimal            = 'Yes — with admissible heuristic';
+  static complete           = 'Yes';
+  static predecessor        = "Dijkstra's Algorithm";
+  static notableImprovement = 'Heuristic guidance drastically reduces the number of nodes explored';
+  static successor          = 'Weighted A*, D*, Theta*';
+  static goodFor            = ['Known goal position', 'Grid pathfinding with admissible heuristic', 'Best performance among uninformed/informed grid algorithms'];
+  static badFor             = ['Unknown goal location', 'Very large state spaces without a tight heuristic', 'Memory-limited settings (use IDA*)'];
+  static graphType          = 'Weighted';
+  static heuristic          = 'Manhattan distance';
+}
+
+class AStarImpl extends GridAlgorithmImpl {
+  static id = 'astar';
+
   static heuristic(a, b) {
     return Math.abs(a.row - b.row) + Math.abs(a.col - b.col);
   }
@@ -192,7 +262,7 @@ Return  no path found`;
   static run(grid, start, end) {
     const visitedInOrder = [];
     start.distance  = 0;
-    start.heuristic = AStar.heuristic(start, end);
+    start.heuristic = AStarImpl.heuristic(start, end);
     const openSet   = [start];
 
     while (openSet.length > 0) {
@@ -203,19 +273,19 @@ Return  no path found`;
       visitedInOrder.push(current);
       if (current === end) break;
 
-      for (const nb of GridAlgorithm.getNeighbours(grid, current)) {
+      for (const nb of GridAlgorithmImpl.getNeighbours(grid, current)) {
         const tentative = current.distance + 1;
         if (tentative < nb.distance) {
           nb.distance     = tentative;
-          nb.heuristic    = AStar.heuristic(nb, end);
+          nb.heuristic    = AStarImpl.heuristic(nb, end);
           nb.previousNode = current;
           if (!nb.isVisited) openSet.push(nb);
         }
       }
     }
 
-    const path = end.isVisited ? GridAlgorithm.retracePath(end) : [];
+    const path = end.isVisited ? GridAlgorithmImpl.retracePath(end) : [];
     return { visitedInOrder, path };
   }
 }
-Algorithm.register(AStar);
+Algorithm.register(AStarInfo, AStarImpl);
