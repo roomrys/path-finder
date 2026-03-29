@@ -8,21 +8,24 @@
   </head>
   <body>
     <header>
-      <h1>Path Finder</h1>
-      <p class="subtitle">Visualize path-finding algorithms in action</p>
+      <h1><a href="https://github.com/roomrys/path-finder" target="_blank" rel="noopener noreferrer">Path Finder</a></h1>
+      <p class="subtitle">Visualize path-finding &amp; motion-planning algorithms in action</p>
     </header>
 
     <main>
       <!-- Controls -->
       <section class="controls">
         <div class="control-group">
-          <label for="algorithm-select">Algorithm</label>
-          <select id="algorithm-select">
-            <option value="bfs">Breadth-First Search (BFS)</option>
-            <option value="dfs">Depth-First Search (DFS)</option>
-            <option value="dijkstra">Dijkstra's Algorithm</option>
-            <option value="astar">A* Search</option>
+          <label for="algorithm-type">Type</label>
+          <select id="algorithm-type">
+            <option value="grid">Grid-based</option>
+            <option value="sampling">Sampling-based</option>
           </select>
+        </div>
+
+        <div class="control-group">
+          <label for="algorithm-select">Algorithm</label>
+          <select id="algorithm-select"><!-- populated by JS --></select>
         </div>
 
         <div class="control-group">
@@ -35,23 +38,54 @@
         </div>
 
         <div class="button-group">
-          <button id="btn-visualize" class="btn btn-primary">Visualize</button>
+          <button id="btn-visualize"  class="btn btn-primary">Visualize</button>
           <button id="btn-clear-path" class="btn btn-secondary">Clear Path</button>
           <button id="btn-clear-board" class="btn btn-secondary">Clear Board</button>
         </div>
 
-        <div class="legend">
+        <!-- Grid legend -->
+        <div class="legend" id="grid-legend">
           <span class="legend-item"><span class="legend-box start"></span>Start</span>
           <span class="legend-item"><span class="legend-box end"></span>End</span>
           <span class="legend-item"><span class="legend-box wall"></span>Wall</span>
           <span class="legend-item"><span class="legend-box visited"></span>Visited</span>
           <span class="legend-item"><span class="legend-box path"></span>Shortest Path</span>
         </div>
+
+        <!-- Sampling legend (hidden by default) -->
+        <div class="legend hidden" id="sampling-legend">
+          <span class="legend-item"><span class="legend-circle" style="background:#22c55e;"></span>Start</span>
+          <span class="legend-item"><span class="legend-circle" style="background:#ef4444;"></span>End</span>
+          <span class="legend-item"><span class="legend-circle" style="background:#0f172a;border-color:#475569;"></span>Obstacle</span>
+          <span class="legend-item"><span class="legend-line" style="background:rgba(59,130,246,0.65);"></span>Tree / Roadmap</span>
+          <span class="legend-item"><span class="legend-line" style="background:#fbbf24;height:4px;"></span>Path</span>
+        </div>
       </section>
 
-      <!-- Grid -->
+      <!-- Environment: grid or canvas, shown one at a time -->
       <section class="grid-container">
         <div id="grid" role="grid" aria-label="Path finding grid"></div>
+        <canvas id="canvas" class="hidden" aria-label="Free-space planning environment"></canvas>
+      </section>
+
+      <!-- Algorithm info panel -->
+      <section class="algo-info" id="algo-info">
+        <div class="algo-info-header">
+          <h3 id="info-name"></h3>
+          <a id="info-paper" href="#" target="_blank" rel="noopener noreferrer"
+             class="paper-link hidden">Read Paper</a>
+        </div>
+        <p id="info-description" class="info-description"></p>
+        <div class="info-tabs">
+          <button class="tab-btn active" data-tab="pseudocode">Pseudocode</button>
+          <button class="tab-btn" data-tab="implementation">Implementation</button>
+        </div>
+        <div id="tab-pseudocode" class="tab-content">
+          <pre id="pseudocode-content" class="code-block"></pre>
+        </div>
+        <div id="tab-implementation" class="tab-content hidden">
+          <pre id="implementation-content" class="code-block"></pre>
+        </div>
       </section>
 
       <!-- Status bar -->
@@ -61,9 +95,13 @@
     </main>
 
     <footer>
-      <p>Click cells to toggle walls &bull; Drag start/end nodes to reposition them</p>
+      <p id="footer-hint">Click cells to toggle walls &bull; Drag start/end nodes to reposition them</p>
     </footer>
 
+    <!-- Script loading order matters: registry must come before algorithms -->
+    <script src="js/algorithm-registry.js"></script>
+    <script src="js/grid-algorithms.js"></script>
+    <script src="js/sampling-algorithms.js"></script>
     <script src="js/main.js"></script>
   </body>
 </html>
