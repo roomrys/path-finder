@@ -122,6 +122,59 @@ class SamplingAlgorithm extends Algorithm {
     return this.randomPoint(width, height); // fallback
   }
 
+  /** Returns index of node closest to target. */
+  static nearestIdx(nodes, target) {
+    let bestIdx = 0;
+    let bestD2 = Infinity;
+    for (let i = 0; i < nodes.length; i++) {
+      const d2 = (nodes[i].x - target.x) ** 2 + (nodes[i].y - target.y) ** 2;
+      if (d2 < bestD2) { bestD2 = d2; bestIdx = i; }
+    }
+    return bestIdx;
+  }
+
+  /** Reconstructs a point path by following `parentIdx` from node `idx` to root. */
+  static tracePath(nodes, idx) {
+    const out = [];
+    let cur = idx;
+    while (cur !== -1) {
+      out.unshift({ x: nodes[cur].x, y: nodes[cur].y });
+      cur = nodes[cur].parentIdx;
+    }
+    return out;
+  }
+
+  /**
+   * Samples from informed prolate hyperspheroid (2-D ellipse) once `cBest` exists.
+   * Falls back to uniform free-space sampling when no valid bound is known.
+   */
+  static informedSample(start, end, cBest, width, height, obstacles) {
+    const cMin = this.dist(start, end);
+    if (!Number.isFinite(cBest) || cBest <= cMin + 1e-6) {
+      return this.randomFreePoint(width, height, obstacles);
+    }
+
+    const a = cBest / 2;
+    const b = Math.sqrt(Math.max(0, cBest * cBest - cMin * cMin)) / 2;
+    const cx = (start.x + end.x) / 2;
+    const cy = (start.y + end.y) / 2;
+    const theta = Math.atan2(end.y - start.y, end.x - start.x);
+    const ct = Math.cos(theta);
+    const st = Math.sin(theta);
+
+    for (let i = 0; i < 120; i++) {
+      const r = Math.sqrt(Math.random());
+      const phi = Math.random() * 2 * Math.PI;
+      const ex = a * r * Math.cos(phi);
+      const ey = b * r * Math.sin(phi);
+      const x = cx + ex * ct - ey * st;
+      const y = cy + ex * st + ey * ct;
+      const p = { x, y };
+      if (x >= 0 && x <= width && y >= 0 && y <= height && this.isFree(p, obstacles)) return p;
+    }
+    return this.randomFreePoint(width, height, obstacles);
+  }
+
   /** Line-segment / circle intersection test (parametric). */
   static _segIntersectsCircle(x1, y1, x2, y2, cx, cy, r) {
     const dx = x2 - x1, dy = y2 - y1;
