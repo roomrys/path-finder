@@ -38,8 +38,8 @@
         </div>
 
         <div class="button-group">
-          <button id="btn-visualize"  class="btn btn-primary">Visualize</button>
-          <button id="btn-clear-path" class="btn btn-secondary">Clear Path</button>
+          <button id="btn-visualize"   class="btn btn-primary">Visualize</button>
+          <button id="btn-clear-path"  class="btn btn-secondary">Clear Path</button>
           <button id="btn-clear-board" class="btn btn-secondary">Clear Board</button>
         </div>
 
@@ -63,35 +63,48 @@
         </div>
       </section>
 
-      <!-- Environment: grid or canvas, shown one at a time -->
-      <section class="grid-container">
-        <div id="grid" role="grid" aria-label="Path finding grid"></div>
-        <canvas id="canvas" class="hidden" aria-label="Free-space planning environment"></canvas>
-      </section>
-
-      <!-- Algorithm info panel -->
-      <section class="algo-info" id="algo-info">
+      <!-- Unified panel: visualizer + algorithm info, all as tabs -->
+      <div class="panel">
+        <!-- Algorithm identity — always visible above tabs -->
         <div class="algo-info-header">
           <h3 id="info-name"></h3>
           <a id="info-paper" href="#" target="_blank" rel="noopener noreferrer"
              class="paper-link hidden">Read Paper</a>
         </div>
         <p id="info-description" class="info-description"></p>
+
+        <!-- Tab bar -->
         <div class="info-tabs">
-          <button class="tab-btn active" data-tab="pseudocode">Pseudocode</button>
+          <button class="tab-btn active" data-tab="visualizer">Visualizer</button>
+          <button class="tab-btn" data-tab="pseudocode">Pseudocode</button>
           <button class="tab-btn" data-tab="implementation">Implementation</button>
           <button class="tab-btn" data-tab="stats">Stats</button>
         </div>
-        <div id="tab-pseudocode" class="tab-content">
-          <pre id="pseudocode-content" class="code-block"></pre>
-        </div>
-        <div id="tab-implementation" class="tab-content hidden">
-          <pre id="implementation-content" class="code-block"></pre>
-        </div>
-        <div id="tab-stats" class="tab-content hidden">
-          <div id="stats-content"></div>
-        </div>
-      </section>
+
+        <!-- Tab panels — all same fixed size via CSS -->
+        <div class="tab-panels">
+
+          <div id="tab-visualizer" class="tab-content">
+            <div class="visualizer-env">
+              <div id="grid" role="grid" aria-label="Path finding grid"></div>
+              <canvas id="canvas" class="hidden" aria-label="Free-space planning environment"></canvas>
+            </div>
+          </div>
+
+          <div id="tab-pseudocode" class="tab-content hidden">
+            <pre id="pseudocode-content" class="code-block"></pre>
+          </div>
+
+          <div id="tab-implementation" class="tab-content hidden">
+            <pre id="implementation-content" class="code-block"></pre>
+          </div>
+
+          <div id="tab-stats" class="tab-content hidden">
+            <div id="stats-content"></div>
+          </div>
+
+        </div><!-- .tab-panels -->
+      </div><!-- .panel -->
 
       <!-- Status bar -->
       <section class="status-bar">

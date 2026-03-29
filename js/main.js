@@ -10,8 +10,8 @@
 const ROWS = 20;
 const COLS = 30;
 
-const CANVAS_WIDTH  = 869; // 30 * 28 + 29 px gaps
-const CANVAS_HEIGHT = 579; // 20 * 28 + 19 px gaps
+let CANVAS_WIDTH  = 0; // set dynamically by resizeCanvas()
+let CANVAS_HEIGHT = 0;
 
 const GRID_SPEED_MAP     = { slow: 80,  medium: 30, fast: 5 };
 const SAMPLING_SPEED_MAP = { slow: 10,  medium: 3,  fast: 0 };
@@ -212,20 +212,34 @@ function clearGridBoard() {
 // CANVAS (FREE-SPACE) ENVIRONMENT
 // ============================================================
 
+function resizeCanvas() {
+  const w = canvasEl.clientWidth;
+  const h = canvasEl.clientHeight;
+  if (w === 0 || h === 0) return; // not visible yet
+
+  CANVAS_WIDTH  = w;
+  CANVAS_HEIGHT = h;
+  // Set buffer to CSS pixel size (1:1 mapping — no DPR scaling needed).
+  // Setting canvas.width also resets the context transform to identity.
+  canvasEl.width  = w;
+  canvasEl.height = h;
+
+  if (state.canvasStart) {
+    // Clamp existing points to new bounds
+    state.canvasStart.x = clamp(state.canvasStart.x, 0, w);
+    state.canvasStart.y = clamp(state.canvasStart.y, 0, h);
+    state.canvasEnd.x   = clamp(state.canvasEnd.x,   0, w);
+    state.canvasEnd.y   = clamp(state.canvasEnd.y,   0, h);
+  } else {
+    state.canvasStart = { x: Math.round(w * 0.17), y: Math.round(h / 2) };
+    state.canvasEnd   = { x: Math.round(w * 0.83), y: Math.round(h / 2) };
+  }
+  renderCanvas();
+}
+
 function initCanvas() {
-  const dpr = window.devicePixelRatio || 1;
-  canvasEl.width        = CANVAS_WIDTH  * dpr;
-  canvasEl.height       = CANVAS_HEIGHT * dpr;
-  canvasEl.style.width  = CANVAS_WIDTH  + 'px';
-  canvasEl.style.height = CANVAS_HEIGHT + 'px';
-  ctx.scale(dpr, dpr);
-
-  state.canvasStart = { x: Math.round(CANVAS_WIDTH * 0.17), y: Math.round(CANVAS_HEIGHT / 2) };
-  state.canvasEnd   = { x: Math.round(CANVAS_WIDTH * 0.83), y: Math.round(CANVAS_HEIGHT / 2) };
-
   canvasEl.addEventListener('mousedown',   onCanvasMouseDown);
   canvasEl.addEventListener('contextmenu', onCanvasContextMenu);
-  renderCanvas();
 }
 
 function renderCanvas() {
@@ -481,6 +495,7 @@ async function runAlgorithm() {
 
   setRunning(true);
   setStatus('Running\u2026');
+  switchToTab('visualizer');
 
   const token    = { cancelled: false };
   state.animCancel = token;
@@ -571,7 +586,7 @@ function switchAlgorithmType(type) {
     canvasEl.classList.remove('hidden');
     document.getElementById('grid-legend').classList.add('hidden');
     document.getElementById('sampling-legend').classList.remove('hidden');
-    renderCanvas();
+    resizeCanvas();
     setStatus('Click & drag to place obstacles, then press Visualize.');
   }
 
@@ -754,21 +769,20 @@ algorithmSel.addEventListener('change', () => {
 
   const entry = Algorithm.getById(algorithmSel.value);
   if (entry) updateInfoPanel(entry.info, entry.impl);
-
-  // Reset info panel to pseudocode tab
-  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
-  document.getElementById('tab-pseudocode').classList.remove('hidden');
-  document.getElementById('tab-implementation').classList.add('hidden');
-  document.getElementById('tab-stats').classList.add('hidden');
 });
 
+function switchToTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+  const btn = document.querySelector(`.tab-btn[data-tab="${name}"]`);
+  if (btn) btn.classList.add('active');
+  const panel = document.getElementById(`tab-${name}`);
+  if (panel) panel.classList.remove('hidden');
+  if (name === 'visualizer') resizeCanvas();
+}
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-    btn.classList.add('active');
-    document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('hidden');
-  });
+  btn.addEventListener('click', () => switchToTab(btn.dataset.tab));
 });
 
 // ============================================================
@@ -777,3 +791,5 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 initGrid();
 initCanvas();
 switchAlgorithmType('sampling');
+switchToTab('stats');
+window.addEventListener('resize', resizeCanvas);

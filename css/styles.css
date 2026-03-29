@@ -35,11 +35,24 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1.5rem 1rem;
+  padding: 1rem 1rem 0.5rem;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 920px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ============================================================
@@ -52,7 +65,7 @@ body {
    ============================================================ */
 header {
   text-align: center;
-  margin-bottom: 1.5rem;
+  flex-shrink: 0;
 }
 
 header h1 {
@@ -88,10 +101,9 @@ header h1 a:hover {
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1.25rem;
+  padding: 0.75rem 1.25rem;
   width: 100%;
-  max-width: 920px;
+  flex-shrink: 0;
 }
 
 .control-group {
@@ -210,15 +222,48 @@ select:disabled {
 
 
 /* ============================================================
-   Grid / Canvas shared container
+   Unified panel (visualizer + algo info tabs)
    ============================================================ */
-.grid-container {
-  overflow: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
+.panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   background-color: var(--color-surface);
-  padding: 0.5rem;
-  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.25rem 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* All tab panels occupy the same fixed area — no page reflow when switching */
+.tab-panels {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.tab-content {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding-bottom: 0.75rem;
+}
+
+/* Visualizer tab: canvas fills the entire panel, grid is centred */
+#tab-visualizer {
+  overflow: hidden;
+  padding: 0;
+}
+
+.visualizer-env {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
 }
 
 /* ============================================================
@@ -258,24 +303,16 @@ select:disabled {
    ============================================================ */
 #canvas {
   display: block;
+  width: 100%;
+  height: 100%;
+  align-self: stretch;
   cursor: crosshair;
-  border-radius: 0.25rem;
   user-select: none;
 }
 
 /* ============================================================
    Algorithm info panel
    ============================================================ */
-.algo-info {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
-  margin-top: 1rem;
-  width: 100%;
-  max-width: 920px;
-}
-
 .algo-info-header {
   display: flex;
   align-items: center;
@@ -348,11 +385,10 @@ select:disabled {
   font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace;
   font-size: 0.78rem;
   line-height: 1.65;
-  max-height: 300px;
-  overflow: auto;
   padding: 0.75rem 1rem;
   white-space: pre;
   tab-size: 2;
+  /* height is constrained by the tab-content panel; no local max-height needed */
 }
 
 /* Syntax-highlight tokens (implementation tab) */
@@ -445,7 +481,7 @@ select:disabled {
    Status bar
    ============================================================ */
 .status-bar {
-  margin-top: 0.75rem;
+  flex-shrink: 0;
   font-size: 0.85rem;
   color: var(--color-text-muted);
   text-align: center;
@@ -455,8 +491,8 @@ select:disabled {
    Footer
    ============================================================ */
 footer {
-  margin-top: auto;
-  padding-top: 1.5rem;
+  flex-shrink: 0;
+  padding-top: 0.4rem;
   font-size: 0.78rem;
   color: var(--color-text-muted);
   text-align: center;
