@@ -13,7 +13,7 @@
     </header>
 
     <main>
-      <!-- Controls -->
+      <!-- Controls: algorithm selection + visualize -->
       <section class="controls">
         <div class="control-group">
           <label for="algorithm-type">Type</label>
@@ -28,38 +28,8 @@
           <select id="algorithm-select"><!-- populated by JS --></select>
         </div>
 
-        <div class="control-group">
-          <label for="speed-select">Speed</label>
-          <select id="speed-select">
-            <option value="fast">Fast</option>
-            <option value="medium" selected>Medium</option>
-            <option value="slow">Slow</option>
-          </select>
-        </div>
-
         <div class="button-group">
-          <button id="btn-visualize"   class="btn btn-primary">Visualize</button>
-          <button id="btn-clear-path"  class="btn btn-secondary">Clear Path</button>
-          <button id="btn-clear-board" class="btn btn-secondary">Clear Board</button>
-        </div>
-
-        <!-- Grid legend (hidden when sampling mode active) -->
-        <div class="legend hidden" id="grid-legend">
-          <span class="legend-item"><span class="legend-box start"></span>Start</span>
-          <span class="legend-item"><span class="legend-box end"></span>End</span>
-          <span class="legend-item"><span class="legend-box wall"></span>Wall</span>
-          <span class="legend-item"><span class="legend-box visited"></span>Visited</span>
-          <span class="legend-item"><span class="legend-box path"></span>Shortest Path</span>
-        </div>
-
-        <!-- Sampling legend (shown by default, hidden when grid mode active) -->
-        <div class="legend" id="sampling-legend">
-          <span class="legend-item"><span class="legend-circle" style="background:#22c55e;"></span>Start</span>
-          <span class="legend-item"><span class="legend-circle" style="background:#ef4444;"></span>End</span>
-          <span class="legend-item"><span class="legend-circle" style="background:#0f172a;border-color:#475569;"></span>Obstacle</span>
-          <span class="legend-item"><span class="legend-line" style="background:rgba(59,130,246,0.65);"></span>Tree / Roadmap</span>
-          <span class="legend-item"><span class="legend-line" style="background:rgba(239,68,68,0.5);"></span>Collision</span>
-          <span class="legend-item"><span class="legend-line" style="background:#fbbf24;height:4px;"></span>Path</span>
+          <button id="btn-visualize" class="btn btn-primary">Visualize</button>
         </div>
       </section>
 
@@ -75,7 +45,7 @@
 
         <!-- Tab bar -->
         <div class="info-tabs">
-          <button class="tab-btn active" data-tab="visualizer">Visualizer</button>
+          <button class="tab-btn" data-tab="visualizer">Visualizer</button>
           <button class="tab-btn" data-tab="pseudocode">Pseudocode</button>
           <button class="tab-btn" data-tab="implementation">Implementation</button>
           <button class="tab-btn" data-tab="stats">Stats</button>
@@ -88,6 +58,37 @@
             <div class="visualizer-env">
               <div id="grid" role="grid" aria-label="Path finding grid"></div>
               <canvas id="canvas" class="hidden" aria-label="Free-space planning environment"></canvas>
+            </div>
+
+            <!-- Legend + speed + clear board overlaid at the top -->
+            <div class="legend" id="visualizer-top-bar">
+              <!-- Legend items swap based on algorithm type -->
+              <span class="legend-items hidden" id="grid-legend">
+                <span class="legend-item"><span class="legend-box start"></span>Start</span>
+                <span class="legend-item"><span class="legend-box end"></span>End</span>
+                <span class="legend-item"><span class="legend-box wall"></span>Wall</span>
+                <span class="legend-item"><span class="legend-box visited"></span>Visited</span>
+                <span class="legend-item"><span class="legend-box path"></span>Shortest Path</span>
+              </span>
+              <span class="legend-items" id="sampling-legend">
+                <span class="legend-item"><span class="legend-circle" style="background:#22c55e;"></span>Start</span>
+                <span class="legend-item"><span class="legend-circle" style="background:#ef4444;"></span>End</span>
+                <span class="legend-item"><span class="legend-circle" style="background:#0f172a;border-color:#475569;"></span>Obstacle</span>
+                <span class="legend-item"><span class="legend-line" style="background:rgba(59,130,246,0.65);"></span>Tree / Roadmap</span>
+                <span class="legend-item"><span class="legend-line" style="background:rgba(239,68,68,0.5);"></span>Collision</span>
+                <span class="legend-item"><span class="legend-line" style="background:#fbbf24;height:4px;"></span>Path</span>
+              </span>
+              <!-- Always-present controls -->
+              <span class="legend-sep"></span>
+              <span class="legend-item legend-control">
+                <label for="speed-select" class="legend-label">Speed</label>
+                <select id="speed-select">
+                  <option value="fast">Fast</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="slow">Slow</option>
+                </select>
+              </span>
+              <button id="btn-clear-board" class="btn btn-secondary btn-sm">Clear Board</button>
             </div>
           </div>
 

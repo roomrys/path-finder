@@ -95,8 +95,7 @@ header h1 a:hover {
    ============================================================ */
 .controls {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   gap: 1rem;
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -110,6 +109,44 @@ header h1 a:hover {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  flex: 1;
+}
+
+/* Legend separator — thin vertical rule between legend items and controls */
+.legend-sep {
+  display: inline-block;
+  width: 1px;
+  height: 1.1em;
+  background: var(--color-border);
+  margin: 0 0.25rem;
+  flex-shrink: 0;
+}
+
+/* Wrapper that groups a set of legend items inline */
+.legend-items {
+  display: contents; /* participates in the parent flex layout inline */
+}
+
+.legend-items.hidden {
+  display: none;
+}
+
+/* Speed label inside the legend */
+.legend-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.legend-control {
+  gap: 0.4rem;
+}
+
+/* Compact button variant for inside the legend bar */
+.btn-sm {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
 }
 
 .control-group label {
@@ -170,13 +207,21 @@ select:disabled {
 .btn-primary   { background-color: var(--color-cell-visited); color: #fff; }
 .btn-secondary { background-color: var(--color-border);       color: var(--color-text); }
 
-/* Legend */
+/* Legend — overlaid at the bottom of the visualizer tab */
 .legend {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 0.75rem;
-  margin-left: auto;
   align-items: center;
+  padding: 0.4rem 1rem;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 1;
 }
 
 .legend-item {

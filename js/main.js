@@ -61,7 +61,6 @@ const algorithmTypeSel = document.getElementById('algorithm-type');
 const algorithmSel     = document.getElementById('algorithm-select');
 const speedSel         = document.getElementById('speed-select');
 const btnVisualize     = document.getElementById('btn-visualize');
-const btnClearPath     = document.getElementById('btn-clear-path');
 const btnClearBoard    = document.getElementById('btn-clear-board');
 const statusMsg        = document.getElementById('status-message');
 const footerHint       = document.getElementById('footer-hint');
@@ -286,8 +285,8 @@ function renderCanvas() {
   // Collision edges (drawn first so tree edges appear on top)
   if (state.canvasCollisionEdges.length > 0) {
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(239,68,68,0.35)';
-    ctx.lineWidth   = 1;
+    ctx.strokeStyle = 'rgba(239,68,68,0.65)';
+    ctx.lineWidth   = 1.5;
     for (const e of state.canvasCollisionEdges) {
       ctx.moveTo(e.x1, e.y1);
       ctx.lineTo(e.x2, e.y2);
@@ -590,6 +589,7 @@ function switchAlgorithmType(type) {
     setStatus('Click & drag to place obstacles, then press Visualize.');
   }
 
+
   populateAlgorithmDropdown(type);
   updateFooterHint(type);
 }
@@ -739,12 +739,6 @@ document.addEventListener('mouseup', () => {
 
 btnVisualize.addEventListener('click', runAlgorithm);
 
-btnClearPath.addEventListener('click', () => {
-  cancelRun();
-  if (state.algorithmType === 'grid') clearGridPath();
-  else                                clearCanvasPath();
-  setStatus('Path cleared.');
-});
 
 btnClearBoard.addEventListener('click', () => {
   cancelRun();
@@ -791,5 +785,5 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 initGrid();
 initCanvas();
 switchAlgorithmType('sampling');
-switchToTab('stats');
+switchToTab('visualizer');
 window.addEventListener('resize', resizeCanvas);
